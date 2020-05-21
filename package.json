@@ -1,0 +1,10 @@
+{
+  "name": "airtable2geojson",
+  "version": "0.1.0",
+  "description": "A Google Cloud Function that transforms a geocoded Airtable view into GeoJSON",
+  "main": "dist/index.js",
+  "repository": "git@github.com:anandaroop/airtable2geojson.git",
+  "author": "Anandaroop Roy <anandaroop.roy+github@gmail.com>",
+  "license": "MIT",
+  "private": false
+}
