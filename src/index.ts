@@ -1,3 +1,3 @@
-let foo: number = 42;
+const foo: number = 42
 
-console.log("Hello, " + foo);
+console.log('Hello, ' + foo)
