@@ -1,3 +1,12 @@
-const foo: number = 42
+import { Request, Response } from "express"
 
-console.log("Hello, " + foo)
+/**
+ * Responds to any HTTP request.
+ *
+ * @param {!express:Request} req HTTP request context.
+ * @param {!express:Response} res HTTP response context.
+ */
+export const helloWorld = (req: Request, res: Response) => {
+  const message = req.query.message || req.body.message || "Hello World!"
+  res.status(200).send(message)
+}

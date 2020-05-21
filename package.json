@@ -28,5 +28,8 @@
   "scripts": {
     "compile": "tsc --rootDir src --outDir dist",
     "lint": "eslint src/** --ext ts"
+  },
+  "dependencies": {
+    "@types/express": "^4.17.6"
   }
 }
