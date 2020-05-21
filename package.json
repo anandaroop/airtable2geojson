@@ -6,5 +6,11 @@
   "repository": "git@github.com:anandaroop/airtable2geojson.git",
   "author": "Anandaroop Roy <anandaroop.roy+github@gmail.com>",
   "license": "MIT",
-  "private": false
+  "private": false,
+  "devDependencies": {
+    "typescript": "^3.9.3"
+  },
+  "scripts": {
+    "compile": "tsc --rootDir src --outDir dist"
+  }
 }
