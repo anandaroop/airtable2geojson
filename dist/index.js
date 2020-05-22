@@ -1,13 +1,155 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.helloWorld = void 0;
-/**
- * Responds to any HTTP request.
- *
- * @param {!express:Request} req HTTP request context.
- * @param {!express:Response} res HTTP response context.
- */
-exports.helloWorld = function (req, res) {
-    var message = req.query.message || req.body.message || "Hello World!";
-    res.status(200).send(message);
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
 };
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var airtable_1 = __importDefault(require("airtable"));
+var _a = process.env, apiKey = _a.AIRTABLE_API_KEY, baseId = _a.AIRTABLE_BASE_ID;
+var airtable = new airtable_1.default({ apiKey: apiKey });
+var base = airtable.base(baseId);
+// base("Deliveries 0523")
+//   .select({ maxRecords: 3 })
+//   .all()
+//   .then((result) => console.log(result))
+function fetchGeocodedRecords(_a) {
+    var tableName = _a.tableName, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+    return __awaiter(this, void 0, void 0, function () {
+        var criteria, results;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0:
+                    criteria = {
+                        // maxRecords: 3,
+                        view: "Grid view",
+                        fields: [idFieldName, geocodedFieldName],
+                    };
+                    return [4 /*yield*/, base(tableName).select(criteria).all()];
+                case 1:
+                    results = _b.sent();
+                    return [2 /*return*/, results];
+            }
+        });
+    });
+}
+var decodeAirtableGeodata = function (value) {
+    var geocode = value.substring(3); // lop off leading status indicator emoji
+    var buffer = Buffer.from(geocode, "base64");
+    var text = buffer.toString("ascii");
+    return JSON.parse(text);
+};
+var toGeoJSONFeature = function (_a) {
+    var record = _a.record, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+    var id = record.fields[idFieldName];
+    var cachedGeocoderResult = record.fields[geocodedFieldName];
+    // pull the lat/lng out of the base64-encoded geocoder result cached by Airtable
+    var geodata = decodeAirtableGeodata(cachedGeocoderResult);
+    var _b = geodata.o, lat = _b.lat, lng = _b.lng;
+    return {
+        type: "Feature",
+        properties: { id: id },
+        geometry: {
+            type: "Point",
+            coordinates: [lng, lat],
+        },
+    };
+};
+var toGeoJSONFeatureCollection = function (_a) {
+    var records = _a.records, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+    var features = records.map(function (record) {
+        return toGeoJSONFeature({ record: record, idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+    });
+    var featureCollection = {
+        type: "FeatureCollection",
+        features: features,
+    };
+    return featureCollection;
+};
+var fetchAndTransform = function (_a) {
+    var tableName = _a.tableName, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+    return __awaiter(void 0, void 0, void 0, function () {
+        var records, jsonObject;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0: return [4 /*yield*/, fetchGeocodedRecords({
+                        tableName: tableName,
+                        idFieldName: idFieldName,
+                        geocodedFieldName: geocodedFieldName,
+                    })];
+                case 1:
+                    records = _b.sent();
+                    jsonObject = toGeoJSONFeatureCollection({
+                        // @ts-ignore
+                        records: records,
+                        idFieldName: idFieldName,
+                        geocodedFieldName: geocodedFieldName,
+                    });
+                    return [2 /*return*/, jsonObject];
+            }
+        });
+    });
+};
+exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var tableName, idFieldName, geocodedFieldName, featureCollection;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                tableName = req.query.tableName || req.body.tableName || "Deliveries 0519";
+                idFieldName = req.query.idFieldName || req.body.idFieldName || "Airtable ID";
+                geocodedFieldName = req.query.geocodedFieldName ||
+                    req.body.geocodedFieldName ||
+                    "Geocoding Cache";
+                return [4 /*yield*/, fetchAndTransform({
+                        tableName: tableName,
+                        idFieldName: idFieldName,
+                        geocodedFieldName: geocodedFieldName,
+                    })];
+            case 1:
+                featureCollection = _a.sent();
+                res.status(200).json(featureCollection);
+                return [2 /*return*/];
+        }
+    });
+}); };
+// fetchAndTransform({
+//   tableName: "Deliveries 0519",
+//   idFieldName: "Airtable ID",
+//   geocodedFieldName: "Geocoding Cache",
+// })
+//   .then((data: any) => console.log(JSON.stringify(data)))
+//   .catch((e) => console.error(e.toString()))
