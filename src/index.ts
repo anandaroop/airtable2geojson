@@ -16,10 +16,8 @@ async function fetchGeocodedRecords({
   geocodedFieldName: string
 }) {
   const criteria = {
-    // maxRecords: 3,
     view: "Grid view",
     fields: [idFieldName, geocodedFieldName], // fetch only the fields we are interested in
-    // filterByFormula: "{Confirmed?} = 'Yes'"
   }
 
   const results = await base(tableName).select(criteria).all()
@@ -28,8 +26,8 @@ async function fetchGeocodedRecords({
 
 const decodeAirtableGeodata = (value: string) => {
   const geocode = value.substring(3) // lop off leading status indicator emoji
-  let buffer = Buffer.from(geocode, "base64")
-  let text = buffer.toString("ascii")
+  const buffer = Buffer.from(geocode, "base64")
+  const text = buffer.toString("ascii")
   return JSON.parse(text)
 }
 
@@ -105,10 +103,11 @@ const fetchAndTransform = async ({
 }
 
 exports.airtableToGeoJSON = async (req: Request, res: Response) => {
-  let tableName = req.query.tableName || req.body.tableName || "Deliveries 0519"
-  let idFieldName =
+  const tableName =
+    req.query.tableName || req.body.tableName || "Deliveries 0519"
+  const idFieldName =
     req.query.idFieldName || req.body.idFieldName || "Airtable ID"
-  let geocodedFieldName =
+  const geocodedFieldName =
     req.query.geocodedFieldName ||
     req.body.geocodedFieldName ||
     "Geocoding Cache"

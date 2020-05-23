@@ -1,6 +1,6 @@
 import express, { Application } from "express"
 import request from "supertest"
-import Airtable from "airtable"
+// import Airtable from "airtable"
 const { airtableToGeoJSON } = require(".")
 
 const mockAirtableResponse = [
@@ -31,13 +31,11 @@ describe("GET /airtableToGeoJSON", () => {
   })
 
   it("converts Airtable records to a GeoJSON FeatureCollection", async () => {
-    const result = await request(app)
-      .get("/airtableToGeoJSON")
-      .query({
-        tableName: "Foo Bars",
-        idFieldName: "ID",
-        geocodedFieldName: "Geocoding Cache",
-      })
+    const result = await request(app).get("/airtableToGeoJSON").query({
+      tableName: "Foo Bars",
+      idFieldName: "ID",
+      geocodedFieldName: "Geocoding Cache",
+    })
 
     expect(result.status).toEqual(200)
     expect(result.text).toEqual(
