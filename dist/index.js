@@ -43,10 +43,6 @@ var airtable_1 = __importDefault(require("airtable"));
 var _a = process.env, apiKey = _a.AIRTABLE_API_KEY, baseId = _a.AIRTABLE_BASE_ID;
 var airtable = new airtable_1.default({ apiKey: apiKey });
 var base = airtable.base(baseId);
-// base("Deliveries 0523")
-//   .select({ maxRecords: 3 })
-//   .all()
-//   .then((result) => console.log(result))
 function fetchGeocodedRecords(_a) {
     var tableName = _a.tableName, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
     return __awaiter(this, void 0, void 0, function () {
@@ -146,10 +142,3 @@ exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 
         }
     });
 }); };
-// fetchAndTransform({
-//   tableName: "Deliveries 0519",
-//   idFieldName: "Airtable ID",
-//   geocodedFieldName: "Geocoding Cache",
-// })
-//   .then((data: any) => console.log(JSON.stringify(data)))
-//   .catch((e) => console.error(e.toString()))

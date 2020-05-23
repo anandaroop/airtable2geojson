@@ -6,11 +6,6 @@ const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 const airtable = new Airtable({ apiKey })
 const base = airtable.base(baseId!)
 
-// base("Deliveries 0523")
-//   .select({ maxRecords: 3 })
-//   .all()
-//   .then((result) => console.log(result))
-
 async function fetchGeocodedRecords({
   tableName,
   idFieldName,
@@ -21,10 +16,8 @@ async function fetchGeocodedRecords({
   geocodedFieldName: string
 }) {
   const criteria = {
-    // maxRecords: 3,
     view: "Grid view",
     fields: [idFieldName, geocodedFieldName], // fetch only the fields we are interested in
-    // filterByFormula: "{Confirmed?} = 'Yes'"
   }
 
   const results = await base(tableName).select(criteria).all()
@@ -33,8 +26,8 @@ async function fetchGeocodedRecords({
 
 const decodeAirtableGeodata = (value: string) => {
   const geocode = value.substring(3) // lop off leading status indicator emoji
-  let buffer = Buffer.from(geocode, "base64")
-  let text = buffer.toString("ascii")
+  const buffer = Buffer.from(geocode, "base64")
+  const text = buffer.toString("ascii")
   return JSON.parse(text)
 }
 
@@ -110,10 +103,11 @@ const fetchAndTransform = async ({
 }
 
 exports.airtableToGeoJSON = async (req: Request, res: Response) => {
-  let tableName = req.query.tableName || req.body.tableName || "Deliveries 0519"
-  let idFieldName =
+  const tableName =
+    req.query.tableName || req.body.tableName || "Deliveries 0519"
+  const idFieldName =
     req.query.idFieldName || req.body.idFieldName || "Airtable ID"
-  let geocodedFieldName =
+  const geocodedFieldName =
     req.query.geocodedFieldName ||
     req.body.geocodedFieldName ||
     "Geocoding Cache"
@@ -126,11 +120,3 @@ exports.airtableToGeoJSON = async (req: Request, res: Response) => {
 
   res.status(200).json(featureCollection)
 }
-
-// fetchAndTransform({
-//   tableName: "Deliveries 0519",
-//   idFieldName: "Airtable ID",
-//   geocodedFieldName: "Geocoding Cache",
-// })
-//   .then((data: any) => console.log(JSON.stringify(data)))
-//   .catch((e) => console.error(e.toString()))
