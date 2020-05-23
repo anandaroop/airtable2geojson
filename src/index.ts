@@ -6,11 +6,6 @@ const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 const airtable = new Airtable({ apiKey })
 const base = airtable.base(baseId!)
 
-// base("Deliveries 0523")
-//   .select({ maxRecords: 3 })
-//   .all()
-//   .then((result) => console.log(result))
-
 async function fetchGeocodedRecords({
   tableName,
   idFieldName,
@@ -126,11 +121,3 @@ exports.airtableToGeoJSON = async (req: Request, res: Response) => {
 
   res.status(200).json(featureCollection)
 }
-
-// fetchAndTransform({
-//   tableName: "Deliveries 0519",
-//   idFieldName: "Airtable ID",
-//   geocodedFieldName: "Geocoding Cache",
-// })
-//   .then((data: any) => console.log(JSON.stringify(data)))
-//   .catch((e) => console.error(e.toString()))
