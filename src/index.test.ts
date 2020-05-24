@@ -65,43 +65,41 @@ describe("/airtableToGeoJSON", () => {
     })
 
     expect(result.status).toEqual(200)
-    expect(result.text).toEqual(
-      JSON.stringify({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {
-              id: "BK69",
-            },
-            geometry: {
-              type: "Point",
-              coordinates: [-73.9661144, 40.6896834],
-            },
+    expect(JSON.parse(result.text)).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            id: "BK69",
           },
-          {
-            type: "Feature",
-            properties: {
-              id: "BK68",
-            },
-            geometry: {
-              type: "Point",
-              coordinates: [-73.97418739999999, 40.6920638],
-            },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.9661144, 40.6896834],
           },
-          {
-            type: "Feature",
-            properties: {
-              id: "QN28",
-            },
-            geometry: {
-              type: "Point",
-              coordinates: [-73.8830701, 40.7556818],
-            },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "BK68",
           },
-        ],
-      })
-    )
+          geometry: {
+            type: "Point",
+            coordinates: [-73.97418739999999, 40.6920638],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "QN28",
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.8830701, 40.7556818],
+          },
+        },
+      ],
+    })
   })
 
   it("also responds to POSTs", async () => {
@@ -152,6 +150,52 @@ describe("/airtableToGeoJSON", () => {
 
       expect(result.status).toEqual(400)
       expect(result.text).toMatch(/geocodedFieldName/)
+    })
+  })
+
+  it("can divide features into clusters", async () => {
+    const result = await request(app).get("/airtableToGeoJSON").query({
+      tableName: "Foo Bars",
+      idFieldName: "ID",
+      geocodedFieldName: "Geocoding Cache",
+      clusterCount: 2,
+    })
+
+    expect(result.status).toEqual(200)
+    expect(JSON.parse(result.text)).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            id: "BK69",
+            cluster: 1,
+            centroid: [-73.9701509, 40.6908736],
+          },
+          geometry: { type: "Point", coordinates: [-73.9661144, 40.6896834] },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "BK68",
+            cluster: 1,
+            centroid: [-73.9701509, 40.6908736],
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.97418739999999, 40.6920638],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "QN28",
+            cluster: 0,
+            centroid: [-73.8830701, 40.7556818],
+          },
+          geometry: { type: "Point", coordinates: [-73.8830701, 40.7556818] },
+        },
+      ],
     })
   })
 })
