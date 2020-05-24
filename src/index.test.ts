@@ -23,7 +23,14 @@ jest.mock("Airtable", () => () => ({
   }),
 }))
 
-describe("GET /airtableToGeoJSON", () => {
+test("data mocking", async () => {
+  const client = new Airtable()
+  const base = client.base("some base")
+  const data = await base("some table").select().all()
+  expect(data).toEqual(mockAirtableResponse)
+})
+
+describe("/airtableToGeoJSON", () => {
   let app: Application
 
   beforeAll(() => {
@@ -36,6 +43,28 @@ describe("GET /airtableToGeoJSON", () => {
 
   it("converts Airtable records to a GeoJSON FeatureCollection", async () => {
     const result = await request(app).get("/airtableToGeoJSON").query({
+      tableName: "Foo Bars",
+      idFieldName: "ID",
+      geocodedFieldName: "Geocoding Cache",
+    })
+
+    expect(result.status).toEqual(200)
+    expect(result.text).toEqual(
+      JSON.stringify({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { id: "42" },
+            geometry: { type: "Point", coordinates: [-73.9629278, 40.7791655] },
+          },
+        ],
+      })
+    )
+  })
+
+  it("also responds to POSTs", async () => {
+    const result = await request(app).post("/airtableToGeoJSON").send({
       tableName: "Foo Bars",
       idFieldName: "ID",
       geocodedFieldName: "Geocoding Cache",
@@ -95,10 +124,4 @@ describe("GET /airtableToGeoJSON", () => {
     })
   })
 
-  xit("uses a mock", () => {
-    const client = new Airtable()
-    const base = client.base("some base")
-    const data = base("some table").select().all()
-    expect(data).toEqual(mockAirtableResponse)
-  })
 })

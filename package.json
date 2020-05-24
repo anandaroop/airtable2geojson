@@ -32,7 +32,9 @@
     "singleQuote": false
   },
   "scripts": {
-    "compile": "tsc --rootDir src --outDir dist",
+    "clean": "rm -rf dist/*",
+    "compile": "tsc",
+    "watch": "tsc --watch",
     "lint": "eslint src/** --ext ts",
     "test": "jest"
   },
