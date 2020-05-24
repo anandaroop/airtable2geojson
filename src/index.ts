@@ -1,6 +1,7 @@
-import Airtable, { Record } from "airtable"
+import Airtable, { Record, Records } from "airtable"
 import { Request, Response } from "express"
 import * as turf from "@turf/turf"
+import { Feature, FeatureCollection, Point } from "geojson"
 
 const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 
@@ -105,7 +106,7 @@ const toGeoJSONFeature = (
     o: { lat, lng },
   } = geodata
 
-  return {
+  const feature: Feature<Point> = {
     type: "Feature",
     properties: { id },
     geometry: {
@@ -113,6 +114,8 @@ const toGeoJSONFeature = (
       coordinates: [lng, lat],
     },
   }
+
+  return feature
 }
 
 /**
@@ -120,7 +123,7 @@ const toGeoJSONFeature = (
  * GeoJSON FeatureCollection, one Feature for each record.
  */
 const toGeoJSONFeatureCollection = (
-  records: Record<any>[],
+  records: Records<any>,
   {
     idFieldName,
     geocodedFieldName,
@@ -129,7 +132,7 @@ const toGeoJSONFeatureCollection = (
   const features = records.map((record) =>
     toGeoJSONFeature(record, { idFieldName, geocodedFieldName })
   )
-  const featureCollection = {
+  const featureCollection: FeatureCollection<Point> = {
     type: "FeatureCollection",
     features: features,
   }
@@ -144,7 +147,6 @@ const fetchAndTransform = async (params: Parameters) => {
   const records = await fetchGeocodedRecords(params)
   const { idFieldName, geocodedFieldName } = params
   const jsonObject = toGeoJSONFeatureCollection(
-    // @ts-ignore
     records,
     { idFieldName, geocodedFieldName }
   )
@@ -183,7 +185,6 @@ export const airtableToGeoJSON = async (req: Request, res: Response) => {
     let featureCollection = await fetchAndTransform(params)
 
     if (params.clusterCount) {
-      // @ts-ignore
       turf.clustersKmeans(featureCollection, {
         numberOfClusters: params.clusterCount,
         mutate: true,

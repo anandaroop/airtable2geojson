@@ -119,7 +119,7 @@ var toGeoJSONFeature = function (record, _a) {
     var cachedGeocoderResult = record.fields[geocodedFieldName];
     var geodata = decodeAirtableGeodata(cachedGeocoderResult);
     var _b = geodata.o, lat = _b.lat, lng = _b.lng;
-    return {
+    var feature = {
         type: "Feature",
         properties: { id: id },
         geometry: {
@@ -127,6 +127,7 @@ var toGeoJSONFeature = function (record, _a) {
             coordinates: [lng, lat],
         },
     };
+    return feature;
 };
 /**
  * Take a set of Airtable records and transform it into a
@@ -155,9 +156,7 @@ var fetchAndTransform = function (params) { return __awaiter(void 0, void 0, voi
             case 1:
                 records = _a.sent();
                 idFieldName = params.idFieldName, geocodedFieldName = params.geocodedFieldName;
-                jsonObject = toGeoJSONFeatureCollection(
-                // @ts-ignore
-                records, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+                jsonObject = toGeoJSONFeatureCollection(records, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
                 return [2 /*return*/, jsonObject];
         }
     });
@@ -198,7 +197,6 @@ exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 
             case 1:
                 featureCollection = _a.sent();
                 if (params.clusterCount) {
-                    // @ts-ignore
                     turf.clustersKmeans(featureCollection, {
                         numberOfClusters: params.clusterCount,
                         mutate: true,
