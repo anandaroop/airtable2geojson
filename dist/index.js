@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -39,41 +50,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.airtableToGeoJSON = void 0;
 var airtable_1 = __importDefault(require("airtable"));
 var _a = process.env, apiKey = _a.AIRTABLE_API_KEY, baseId = _a.AIRTABLE_BASE_ID;
-var airtable = new airtable_1.default({ apiKey: apiKey });
-var base = airtable.base(baseId);
-function fetchGeocodedRecords(_a) {
-    var tableName = _a.tableName, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+var client = new airtable_1.default({ apiKey: apiKey });
+var base = client.base(baseId);
+/**
+ * Use the supplied Airtable parameters to fetch a set of
+ * records (optionally defined via an Airtable view),
+ * and select only the columns of interest.
+ */
+function fetchGeocodedRecords(params) {
     return __awaiter(this, void 0, void 0, function () {
-        var criteria, results;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
+        var tableName, viewName, idFieldName, geocodedFieldName, criteria, results;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
                 case 0:
+                    tableName = params.tableName, viewName = params.viewName, idFieldName = params.idFieldName, geocodedFieldName = params.geocodedFieldName;
                     criteria = {
-                        // maxRecords: 3,
-                        view: "Grid view",
+                        view: viewName,
                         fields: [idFieldName, geocodedFieldName],
                     };
                     return [4 /*yield*/, base(tableName).select(criteria).all()];
                 case 1:
-                    results = _b.sent();
+                    results = _a.sent();
                     return [2 /*return*/, results];
             }
         });
     });
 }
+/**
+ * Pull the lat/lng out of the base64-encoded geocoder result cached by Airtable
+ */
 var decodeAirtableGeodata = function (value) {
     var geocode = value.substring(3); // lop off leading status indicator emoji
     var buffer = Buffer.from(geocode, "base64");
     var text = buffer.toString("ascii");
     return JSON.parse(text);
 };
-var toGeoJSONFeature = function (_a) {
-    var record = _a.record, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+/**
+ * Transform an Airtable record into a GeoJSON Feature,
+ * with geometry coming from the geocoded & cached Airtable column,
+ * and properties limited to ID for now.
+ */
+var toGeoJSONFeature = function (record, _a) {
+    var idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
     var id = record.fields[idFieldName];
     var cachedGeocoderResult = record.fields[geocodedFieldName];
-    // pull the lat/lng out of the base64-encoded geocoder result cached by Airtable
     var geodata = decodeAirtableGeodata(cachedGeocoderResult);
     var _b = geodata.o, lat = _b.lat, lng = _b.lng;
     return {
@@ -85,10 +108,14 @@ var toGeoJSONFeature = function (_a) {
         },
     };
 };
-var toGeoJSONFeatureCollection = function (_a) {
-    var records = _a.records, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
+/**
+ * Take a set of Airtable records and transform it into a
+ * GeoJSON FeatureCollection, one Feature for each record.
+ */
+var toGeoJSONFeatureCollection = function (records, _a) {
+    var idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
     var features = records.map(function (record) {
-        return toGeoJSONFeature({ record: record, idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+        return toGeoJSONFeature(record, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
     });
     var featureCollection = {
         type: "FeatureCollection",
@@ -96,49 +123,67 @@ var toGeoJSONFeatureCollection = function (_a) {
     };
     return featureCollection;
 };
-var fetchAndTransform = function (_a) {
-    var tableName = _a.tableName, idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
-    return __awaiter(void 0, void 0, void 0, function () {
-        var records, jsonObject;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0: return [4 /*yield*/, fetchGeocodedRecords({
-                        tableName: tableName,
-                        idFieldName: idFieldName,
-                        geocodedFieldName: geocodedFieldName,
-                    })];
-                case 1:
-                    records = _b.sent();
-                    jsonObject = toGeoJSONFeatureCollection({
-                        // @ts-ignore
-                        records: records,
-                        idFieldName: idFieldName,
-                        geocodedFieldName: geocodedFieldName,
-                    });
-                    return [2 /*return*/, jsonObject];
-            }
-        });
+/**
+ * Fetch the records from the Airtable base and transform them
+ * into a GeoJSON FeatureCollection object
+ */
+var fetchAndTransform = function (params) { return __awaiter(void 0, void 0, void 0, function () {
+    var records, idFieldName, geocodedFieldName, jsonObject;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, fetchGeocodedRecords(params)];
+            case 1:
+                records = _a.sent();
+                idFieldName = params.idFieldName, geocodedFieldName = params.geocodedFieldName;
+                jsonObject = toGeoJSONFeatureCollection(
+                // @ts-ignore
+                records, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+                return [2 /*return*/, jsonObject];
+        }
     });
+}); };
+/**
+ * Pull out the parameters from the http request — from either
+ * querystring or request body, so that it is GET & POST compatible —
+ * and complain if any required params are missing
+ */
+var processArguments = function (req) {
+    var defaults = {
+        // tableName: "Deliveries 0519",
+        // idFieldName: "Airtable ID",
+        // geocodedFieldName: "Geocoding Cache",
+        viewName: "Grid view",
+    };
+    var hasBody = Object.entries(req.body).length > 0;
+    var params = hasBody ? req.body : req.query;
+    if (!params.tableName)
+        throw new Error("Please supply tableName");
+    if (!params.idFieldName)
+        throw new Error("Please supply idFieldName");
+    if (!params.geocodedFieldName)
+        throw new Error("Please supply geocodedFieldName");
+    return __assign(__assign({}, defaults), params);
 };
+/**
+ * HTTP request handler that serves as the cloud function endpoint
+ */
 exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var tableName, idFieldName, geocodedFieldName, featureCollection;
+    var airtableParams, featureCollection, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                tableName = req.query.tableName || req.body.tableName || "Deliveries 0519";
-                idFieldName = req.query.idFieldName || req.body.idFieldName || "Airtable ID";
-                geocodedFieldName = req.query.geocodedFieldName ||
-                    req.body.geocodedFieldName ||
-                    "Geocoding Cache";
-                return [4 /*yield*/, fetchAndTransform({
-                        tableName: tableName,
-                        idFieldName: idFieldName,
-                        geocodedFieldName: geocodedFieldName,
-                    })];
+                _a.trys.push([0, 2, , 3]);
+                airtableParams = processArguments(req);
+                return [4 /*yield*/, fetchAndTransform(airtableParams)];
             case 1:
                 featureCollection = _a.sent();
                 res.status(200).json(featureCollection);
-                return [2 /*return*/];
+                return [3 /*break*/, 3];
+            case 2:
+                e_1 = _a.sent();
+                res.status(400).json({ error: e_1.message });
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
         }
     });
 }); };
