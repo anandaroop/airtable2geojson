@@ -12,6 +12,7 @@
     "@types/supertest": "^2.0.9",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
+    "dotenv": "^8.2.0",
     "eslint": "^7.0.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-config-standard": "^14.1.1",
@@ -25,6 +26,7 @@
     "prettier": "^2.0.5",
     "supertest": "^4.0.2",
     "ts-jest": "^26.0.0",
+    "ts-node-dev": "^1.0.0-pre.44",
     "typescript": "^3.9.3"
   },
   "prettier": {
@@ -36,7 +38,8 @@
     "compile": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint src/** --ext ts",
-    "test": "jest"
+    "test": "jest",
+    "start": "ts-node-dev dev/server.ts"
   },
   "dependencies": {
     "@types/airtable": "^0.5.7",
