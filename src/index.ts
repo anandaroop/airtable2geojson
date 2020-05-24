@@ -215,6 +215,7 @@ export const airtableToGeoJSON = async (req: Request, res: Response) => {
       cluster(featureCollection, params.clusterCount)
     }
 
+    res.set('Access-Control-Allow-Origin', '*');
     res.status(200).json(featureCollection)
   } catch (e) {
     res.status(400).json({ error: e.message })

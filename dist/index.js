@@ -224,6 +224,7 @@ exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 
                 if (params.clusterCount) {
                     cluster(featureCollection, params.clusterCount);
                 }
+                res.set('Access-Control-Allow-Origin', '*');
                 res.status(200).json(featureCollection);
                 return [3 /*break*/, 3];
             case 2:
