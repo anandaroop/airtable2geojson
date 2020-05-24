@@ -72,6 +72,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.airtableToGeoJSON = void 0;
 var airtable_1 = __importDefault(require("airtable"));
 var turf = __importStar(require("@turf/turf"));
+// @ts-ignore
+var hsl_to_hex_1 = __importDefault(require("@davidmarkclements/hsl-to-hex"));
 var _a = process.env, apiKey = _a.AIRTABLE_API_KEY, baseId = _a.AIRTABLE_BASE_ID;
 var client = new airtable_1.default({ apiKey: apiKey });
 var base = client.base(baseId);
@@ -156,7 +158,10 @@ var fetchAndTransform = function (params) { return __awaiter(void 0, void 0, voi
             case 1:
                 records = _a.sent();
                 idFieldName = params.idFieldName, geocodedFieldName = params.geocodedFieldName;
-                jsonObject = toGeoJSONFeatureCollection(records, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+                jsonObject = toGeoJSONFeatureCollection(records, {
+                    idFieldName: idFieldName,
+                    geocodedFieldName: geocodedFieldName,
+                });
                 return [2 /*return*/, jsonObject];
         }
     });
@@ -184,6 +189,26 @@ var processArguments = function (req) {
     return __assign(__assign({}, defaults), params);
 };
 /**
+ * Divide the FeatureCollection into the requested number of clusters,
+ * and clean up and colorize the output while we're at it.
+ */
+var cluster = function (featureCollection, numberOfClusters) {
+    turf.clustersKmeans(featureCollection, {
+        numberOfClusters: numberOfClusters,
+        mutate: true,
+    });
+    featureCollection.features.forEach(function (feature) {
+        // remove centroid
+        delete feature.properties.centroid;
+        // add a hex color, from a diy divergent color scheme
+        // @ts-ignore
+        var cluster = feature.properties.cluster;
+        var hue = cluster * 360 / numberOfClusters;
+        var hex = hsl_to_hex_1.default(hue, 50, 50);
+        feature.properties['marker-color'] = hex;
+    });
+};
+/**
  * HTTP request handler that serves as the cloud function endpoint
  */
 exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
@@ -197,10 +222,7 @@ exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 
             case 1:
                 featureCollection = _a.sent();
                 if (params.clusterCount) {
-                    turf.clustersKmeans(featureCollection, {
-                        numberOfClusters: params.clusterCount,
-                        mutate: true,
-                    });
+                    cluster(featureCollection, params.clusterCount);
                 }
                 res.status(200).json(featureCollection);
                 return [3 /*break*/, 3];

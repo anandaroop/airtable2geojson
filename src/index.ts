@@ -2,6 +2,8 @@ import Airtable, { Record, Records } from "airtable"
 import { Request, Response } from "express"
 import * as turf from "@turf/turf"
 import { Feature, FeatureCollection, Point } from "geojson"
+// @ts-ignore
+import hsl from "@davidmarkclements/hsl-to-hex";
 
 const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 
@@ -146,10 +148,10 @@ const toGeoJSONFeatureCollection = (
 const fetchAndTransform = async (params: Parameters) => {
   const records = await fetchGeocodedRecords(params)
   const { idFieldName, geocodedFieldName } = params
-  const jsonObject = toGeoJSONFeatureCollection(
-    records,
-    { idFieldName, geocodedFieldName }
-  )
+  const jsonObject = toGeoJSONFeatureCollection(records, {
+    idFieldName,
+    geocodedFieldName,
+  })
   return jsonObject
 }
 
@@ -177,6 +179,31 @@ const processArguments = (req: Request): Parameters => {
 }
 
 /**
+ * Divide the FeatureCollection into the requested number of clusters,
+ * and clean up and colorize the output while we're at it.
+ */
+const cluster = (
+  featureCollection: FeatureCollection<Point>,
+  numberOfClusters: number
+) => {
+  turf.clustersKmeans(featureCollection, {
+    numberOfClusters,
+    mutate: true,
+  })
+  featureCollection.features.forEach((feature) => {
+    // remove centroid
+    delete feature.properties!.centroid
+
+    // add a hex color, from a diy divergent color scheme
+    // @ts-ignore
+    const { cluster } = feature.properties
+    const hue = cluster * 360/numberOfClusters
+    const hex = hsl(hue, 50, 50)
+    feature.properties!['marker-color'] = hex
+  })
+}
+
+/**
  * HTTP request handler that serves as the cloud function endpoint
  */
 export const airtableToGeoJSON = async (req: Request, res: Response) => {
@@ -185,10 +212,7 @@ export const airtableToGeoJSON = async (req: Request, res: Response) => {
     let featureCollection = await fetchAndTransform(params)
 
     if (params.clusterCount) {
-      turf.clustersKmeans(featureCollection, {
-        numberOfClusters: params.clusterCount,
-        mutate: true,
-      })
+      cluster(featureCollection, params.clusterCount)
     }
 
     res.status(200).json(featureCollection)

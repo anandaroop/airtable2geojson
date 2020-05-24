@@ -170,7 +170,7 @@ describe("/airtableToGeoJSON", () => {
           properties: {
             id: "BK69",
             cluster: 1,
-            centroid: [-73.9701509, 40.6908736],
+            "marker-color": "#40bfbf",
           },
           geometry: { type: "Point", coordinates: [-73.9661144, 40.6896834] },
         },
@@ -179,7 +179,7 @@ describe("/airtableToGeoJSON", () => {
           properties: {
             id: "BK68",
             cluster: 1,
-            centroid: [-73.9701509, 40.6908736],
+            "marker-color": "#40bfbf",
           },
           geometry: {
             type: "Point",
@@ -191,7 +191,7 @@ describe("/airtableToGeoJSON", () => {
           properties: {
             id: "QN28",
             cluster: 0,
-            centroid: [-73.8830701, 40.7556818],
+            "marker-color": "#bf4040",
           },
           geometry: { type: "Point", coordinates: [-73.8830701, 40.7556818] },
         },

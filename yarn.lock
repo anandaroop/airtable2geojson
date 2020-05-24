@@ -265,6 +265,14 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
+"@davidmarkclements/hsl-to-hex@^1.0.2":
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/@davidmarkclements/hsl-to-hex/-/hsl-to-hex-1.0.2.tgz#87b8dcc18ccc37acfb3cd5e056eadead11d9e58c"
+  integrity sha1-h7jcwYzMN6z7PNXgVurerRHZ5Yw=
+  dependencies:
+    debug "^2.2.0"
+    hsl-to-rgb-for-reals "^1.1.0"
+
 "@istanbuljs/load-nyc-config@^1.0.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@istanbuljs/load-nyc-config/-/load-nyc-config-1.1.0.tgz#fd3db1d59ecf7cf121e80650bb86712f9b55eced"
@@ -3588,6 +3596,11 @@ hosted-git-info@^2.1.4:
   version "2.8.8"
   resolved "https://registry.yarnpkg.com/hosted-git-info/-/hosted-git-info-2.8.8.tgz#7539bd4bc1e0e0a895815a2e0262420b12858488"
   integrity sha512-f/wzC2QaWBs7t9IYqB4T3sR1xviIViXJRJTWBlx2Gf3g0Xi5vI7Yy4koXQ1c9OYDGHN9sBy1DQ2AB8fqZBWhUg==
+
+hsl-to-rgb-for-reals@^1.1.0:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/hsl-to-rgb-for-reals/-/hsl-to-rgb-for-reals-1.1.1.tgz#e1eb23f6b78016e3722431df68197e6dcdc016d9"
+  integrity sha512-LgOWAkrN0rFaQpfdWBQlv/VhkOxb5AsBjk6NQVx4yEzWS923T07X0M1Y0VNko2H52HeSpZrZNNMJ0aFqsdVzQg==
 
 html-encoding-sniffer@^2.0.1:
   version "2.0.1"
