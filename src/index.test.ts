@@ -7,10 +7,26 @@ import { airtableToGeoJSON } from "."
 const mockAirtableResponse = [
   {
     fields: {
-      Address: "1000 Fifth Ave",
-      ID: "42",
+      ID: "BK69",
+      Description: "Clinton Hill",
       "Geocoding Cache":
-        "🔵 eyJpIjoiMTAwMCBGaWZ0aCBBdmUsIDEwMDI4LCBRdWVlbnMsIE5ZIiwibyI6eyJzdGF0dXMiOiJPSyIsImZvcm1hdHRlZEFkZHJlc3MiOiIxMDAwIDV0aCBBdmUsIE5ldyBZb3JrLCBOWSAxMDAyOCwgVVNBIiwibGF0Ijo0MC43NzkxNjU1LCJsbmciOi03My45NjI5Mjc4fSwiZSI6MTU5Mjc4NDk4NTA1NH0=",
+        "🔵 eyJpIjoiQnJvb2tseW46IENsaW50b24gSGlsbCwgQnJvb2tseW4sIE5ZIiwibyI6eyJzdGF0dXMiOiJPSyIsImZvcm1hdHRlZEFkZHJlc3MiOiJDbGludG9uIEhpbGwsIEJyb29rbHluLCBOWSwgVVNBIiwibGF0Ijo0MC42ODk2ODM0LCJsbmciOi03My45NjYxMTQ0fSwiZSI6MTU4NzE2NDk3NTgzM30=",
+    },
+  },
+  {
+    fields: {
+      ID: "BK68",
+      Description: "Fort Greene",
+      "Geocoding Cache":
+        "🔵 eyJpIjoiQnJvb2tseW46IEZvcnQgR3JlZW5lLCBCcm9va2x5biwgTlkiLCJvIjp7InN0YXR1cyI6Ik9LIiwiZm9ybWF0dGVkQWRkcmVzcyI6IkZvcnQgR3JlZW5lLCBCcm9va2x5biwgTlksIFVTQSIsImxhdCI6NDAuNjkyMDYzOCwibG5nIjotNzMuOTc0MTg3Mzk5OTk5OTl9LCJlIjoxNTg3MTY0OTg0ODMyfQ==",
+    },
+  },
+  {
+    fields: {
+      ID: "QN28",
+      Description: "Jackson Heights",
+      "Geocoding Cache":
+        "🔵 eyJpIjoiUXVlZW5zOiBKYWNrc29uIEhlaWdodHMsIFF1ZWVucywgTlkiLCJvIjp7InN0YXR1cyI6Ik9LIiwiZm9ybWF0dGVkQWRkcmVzcyI6IkphY2tzb24gSGVpZ2h0cywgUXVlZW5zLCBOWSwgVVNBIiwibGF0Ijo0MC43NTU2ODE4LCJsbmciOi03My44ODMwNzAxfSwiZSI6MTU4NzE2NDk4MDc4OH0=",
     },
   },
 ]
@@ -39,7 +55,7 @@ describe("/airtableToGeoJSON", () => {
     app.use(bodyParser.json())
     app.get("/airtableToGeoJSON", airtableToGeoJSON)
     app.post("/airtableToGeoJSON", airtableToGeoJSON)
- })
+  })
 
   it("converts Airtable records to a GeoJSON FeatureCollection", async () => {
     const result = await request(app).get("/airtableToGeoJSON").query({
@@ -49,18 +65,41 @@ describe("/airtableToGeoJSON", () => {
     })
 
     expect(result.status).toEqual(200)
-    expect(result.text).toEqual(
-      JSON.stringify({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: { id: "42" },
-            geometry: { type: "Point", coordinates: [-73.9629278, 40.7791655] },
+    expect(JSON.parse(result.text)).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            id: "BK69",
           },
-        ],
-      })
-    )
+          geometry: {
+            type: "Point",
+            coordinates: [-73.9661144, 40.6896834],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "BK68",
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.97418739999999, 40.6920638],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "QN28",
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.8830701, 40.7556818],
+          },
+        },
+      ],
+    })
   })
 
   it("also responds to POSTs", async () => {
@@ -71,18 +110,8 @@ describe("/airtableToGeoJSON", () => {
     })
 
     expect(result.status).toEqual(200)
-    expect(result.text).toEqual(
-      JSON.stringify({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: { id: "42" },
-            geometry: { type: "Point", coordinates: [-73.9629278, 40.7791655] },
-          },
-        ],
-      })
-    )
+    const geoJSON = JSON.parse(result.text)
+    expect(geoJSON.features).toHaveLength(3)
   })
 
   describe("input parameters", () => {
@@ -124,4 +153,49 @@ describe("/airtableToGeoJSON", () => {
     })
   })
 
+  it("can divide features into clusters", async () => {
+    const result = await request(app).get("/airtableToGeoJSON").query({
+      tableName: "Foo Bars",
+      idFieldName: "ID",
+      geocodedFieldName: "Geocoding Cache",
+      clusterCount: 2,
+    })
+
+    expect(result.status).toEqual(200)
+    expect(JSON.parse(result.text)).toEqual({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {
+            id: "BK69",
+            cluster: 1,
+            "marker-color": "#40bfbf",
+          },
+          geometry: { type: "Point", coordinates: [-73.9661144, 40.6896834] },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "BK68",
+            cluster: 1,
+            "marker-color": "#40bfbf",
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [-73.97418739999999, 40.6920638],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            id: "QN28",
+            cluster: 0,
+            "marker-color": "#bf4040",
+          },
+          geometry: { type: "Point", coordinates: [-73.8830701, 40.7556818] },
+        },
+      ],
+    })
+  })
 })

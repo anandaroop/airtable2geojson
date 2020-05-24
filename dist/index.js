@@ -10,6 +10,25 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -52,6 +71,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.airtableToGeoJSON = void 0;
 var airtable_1 = __importDefault(require("airtable"));
+var turf = __importStar(require("@turf/turf"));
+// @ts-ignore
+var hsl_to_hex_1 = __importDefault(require("@davidmarkclements/hsl-to-hex"));
 var _a = process.env, apiKey = _a.AIRTABLE_API_KEY, baseId = _a.AIRTABLE_BASE_ID;
 var client = new airtable_1.default({ apiKey: apiKey });
 var base = client.base(baseId);
@@ -99,7 +121,7 @@ var toGeoJSONFeature = function (record, _a) {
     var cachedGeocoderResult = record.fields[geocodedFieldName];
     var geodata = decodeAirtableGeodata(cachedGeocoderResult);
     var _b = geodata.o, lat = _b.lat, lng = _b.lng;
-    return {
+    var feature = {
         type: "Feature",
         properties: { id: id },
         geometry: {
@@ -107,6 +129,7 @@ var toGeoJSONFeature = function (record, _a) {
             coordinates: [lng, lat],
         },
     };
+    return feature;
 };
 /**
  * Take a set of Airtable records and transform it into a
@@ -135,9 +158,10 @@ var fetchAndTransform = function (params) { return __awaiter(void 0, void 0, voi
             case 1:
                 records = _a.sent();
                 idFieldName = params.idFieldName, geocodedFieldName = params.geocodedFieldName;
-                jsonObject = toGeoJSONFeatureCollection(
-                // @ts-ignore
-                records, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
+                jsonObject = toGeoJSONFeatureCollection(records, {
+                    idFieldName: idFieldName,
+                    geocodedFieldName: geocodedFieldName,
+                });
                 return [2 /*return*/, jsonObject];
         }
     });
@@ -165,18 +189,42 @@ var processArguments = function (req) {
     return __assign(__assign({}, defaults), params);
 };
 /**
+ * Divide the FeatureCollection into the requested number of clusters,
+ * and clean up and colorize the output while we're at it.
+ */
+var cluster = function (featureCollection, numberOfClusters) {
+    turf.clustersKmeans(featureCollection, {
+        numberOfClusters: numberOfClusters,
+        mutate: true,
+    });
+    featureCollection.features.forEach(function (feature) {
+        // remove centroid
+        delete feature.properties.centroid;
+        // add a hex color, from a diy divergent color scheme
+        // @ts-ignore
+        var cluster = feature.properties.cluster;
+        var hue = cluster * 360 / numberOfClusters;
+        var hex = hsl_to_hex_1.default(hue, 50, 50);
+        feature.properties['marker-color'] = hex;
+    });
+};
+/**
  * HTTP request handler that serves as the cloud function endpoint
  */
 exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var airtableParams, featureCollection, e_1;
+    var params, featureCollection, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 2, , 3]);
-                airtableParams = processArguments(req);
-                return [4 /*yield*/, fetchAndTransform(airtableParams)];
+                params = processArguments(req);
+                return [4 /*yield*/, fetchAndTransform(params)];
             case 1:
                 featureCollection = _a.sent();
+                if (params.clusterCount) {
+                    cluster(featureCollection, params.clusterCount);
+                }
+                res.set('Access-Control-Allow-Origin', '*');
                 res.status(200).json(featureCollection);
                 return [3 /*break*/, 3];
             case 2:

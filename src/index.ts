@@ -1,5 +1,9 @@
-import Airtable, { Record } from "airtable"
+import Airtable, { Record, Records } from "airtable"
 import { Request, Response } from "express"
+import * as turf from "@turf/turf"
+import { Feature, FeatureCollection, Point } from "geojson"
+// @ts-ignore
+import hsl from "@davidmarkclements/hsl-to-hex";
 
 const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 
@@ -13,7 +17,7 @@ const base = client.base(baseId!)
  * environment value in the cloud function's environment settings
  * (along with an AIRTABLE_API_KEY that has read permissions on the base).
  */
-interface AirtableParams {
+interface Parameters {
   /** Name of the table within the Airtable base */
   tableName: string
 
@@ -25,6 +29,9 @@ interface AirtableParams {
 
   /** Name of a column holding the Airtable Map block's cached geocoding result  */
   geocodedFieldName: string
+
+  /** (Optional) How many clusters to create from the retrieved locations */
+  clusterCount: number
 }
 
 /**
@@ -61,7 +68,7 @@ interface AirtableCachedGeocode {
  * records (optionally defined via an Airtable view),
  * and select only the columns of interest.
  */
-async function fetchGeocodedRecords(params: AirtableParams) {
+async function fetchGeocodedRecords(params: Parameters) {
   const { tableName, viewName, idFieldName, geocodedFieldName } = params
   const criteria = {
     view: viewName,
@@ -91,7 +98,7 @@ const toGeoJSONFeature = (
   {
     idFieldName,
     geocodedFieldName,
-  }: Pick<AirtableParams, "idFieldName" | "geocodedFieldName">
+  }: Pick<Parameters, "idFieldName" | "geocodedFieldName">
 ) => {
   const id = record.fields[idFieldName]
   const cachedGeocoderResult = record.fields[geocodedFieldName]
@@ -101,7 +108,7 @@ const toGeoJSONFeature = (
     o: { lat, lng },
   } = geodata
 
-  return {
+  const feature: Feature<Point> = {
     type: "Feature",
     properties: { id },
     geometry: {
@@ -109,6 +116,8 @@ const toGeoJSONFeature = (
       coordinates: [lng, lat],
     },
   }
+
+  return feature
 }
 
 /**
@@ -116,16 +125,16 @@ const toGeoJSONFeature = (
  * GeoJSON FeatureCollection, one Feature for each record.
  */
 const toGeoJSONFeatureCollection = (
-  records: Record<any>[],
+  records: Records<any>,
   {
     idFieldName,
     geocodedFieldName,
-  }: Pick<AirtableParams, "idFieldName" | "geocodedFieldName">
+  }: Pick<Parameters, "idFieldName" | "geocodedFieldName">
 ) => {
   const features = records.map((record) =>
     toGeoJSONFeature(record, { idFieldName, geocodedFieldName })
   )
-  const featureCollection = {
+  const featureCollection: FeatureCollection<Point> = {
     type: "FeatureCollection",
     features: features,
   }
@@ -136,14 +145,13 @@ const toGeoJSONFeatureCollection = (
  * Fetch the records from the Airtable base and transform them
  * into a GeoJSON FeatureCollection object
  */
-const fetchAndTransform = async (params: AirtableParams) => {
+const fetchAndTransform = async (params: Parameters) => {
   const records = await fetchGeocodedRecords(params)
   const { idFieldName, geocodedFieldName } = params
-  const jsonObject = toGeoJSONFeatureCollection(
-    // @ts-ignore
-    records,
-    { idFieldName, geocodedFieldName }
-  )
+  const jsonObject = toGeoJSONFeatureCollection(records, {
+    idFieldName,
+    geocodedFieldName,
+  })
   return jsonObject
 }
 
@@ -152,15 +160,15 @@ const fetchAndTransform = async (params: AirtableParams) => {
  * querystring or request body, so that it is GET & POST compatible —
  * and complain if any required params are missing
  */
-const processArguments = (req: Request): AirtableParams => {
-  const defaults: Partial<AirtableParams> = {
+const processArguments = (req: Request): Parameters => {
+  const defaults: Partial<Parameters> = {
     // tableName: "Deliveries 0519",
     // idFieldName: "Airtable ID",
     // geocodedFieldName: "Geocoding Cache",
     viewName: "Grid view",
   }
   const hasBody = Object.entries(req.body).length > 0
-  const params: AirtableParams = hasBody ? req.body : req.query
+  const params: Parameters = hasBody ? req.body : req.query
 
   if (!params.tableName) throw new Error("Please supply tableName")
   if (!params.idFieldName) throw new Error("Please supply idFieldName")
@@ -171,12 +179,43 @@ const processArguments = (req: Request): AirtableParams => {
 }
 
 /**
+ * Divide the FeatureCollection into the requested number of clusters,
+ * and clean up and colorize the output while we're at it.
+ */
+const cluster = (
+  featureCollection: FeatureCollection<Point>,
+  numberOfClusters: number
+) => {
+  turf.clustersKmeans(featureCollection, {
+    numberOfClusters,
+    mutate: true,
+  })
+  featureCollection.features.forEach((feature) => {
+    // remove centroid
+    delete feature.properties!.centroid
+
+    // add a hex color, from a diy divergent color scheme
+    // @ts-ignore
+    const { cluster } = feature.properties
+    const hue = cluster * 360/numberOfClusters
+    const hex = hsl(hue, 50, 50)
+    feature.properties!['marker-color'] = hex
+  })
+}
+
+/**
  * HTTP request handler that serves as the cloud function endpoint
  */
 export const airtableToGeoJSON = async (req: Request, res: Response) => {
   try {
-    const airtableParams = processArguments(req)
-    const featureCollection = await fetchAndTransform(airtableParams)
+    const params = processArguments(req)
+    let featureCollection = await fetchAndTransform(params)
+
+    if (params.clusterCount) {
+      cluster(featureCollection, params.clusterCount)
+    }
+
+    res.set('Access-Control-Allow-Origin', '*');
     res.status(200).json(featureCollection)
   } catch (e) {
     res.status(400).json({ error: e.message })
