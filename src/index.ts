@@ -3,7 +3,7 @@ import { Request, Response } from "express"
 import * as turf from "@turf/turf"
 import { Feature, FeatureCollection, Point } from "geojson"
 // @ts-ignore
-import hsl from "@davidmarkclements/hsl-to-hex";
+import hsl from "@davidmarkclements/hsl-to-hex"
 
 const { AIRTABLE_API_KEY: apiKey, AIRTABLE_BASE_ID: baseId } = process.env
 
@@ -84,7 +84,7 @@ async function fetchGeocodedRecords(params: Parameters) {
 const decodeAirtableGeodata = (value: string): AirtableCachedGeocode => {
   const geocode = value.substring(3) // lop off leading status indicator emoji
   const buffer = Buffer.from(geocode, "base64")
-  const text = buffer.toString("ascii")
+  const text = buffer.toString("ascii").replace(/\\"/g, "")
   return JSON.parse(text)
 }
 
@@ -156,6 +156,15 @@ const fetchAndTransform = async (params: Parameters) => {
 }
 
 /**
+ * Pull out the either the request query or body, whichever is populated
+ */
+const queryOrBody = (req: Request): Parameters => {
+  const hasBody = Object.entries(req.body).length > 0
+  const params: Parameters = hasBody ? req.body : req.query
+  return params
+}
+
+/**
  * Pull out the parameters from the http request — from either
  * querystring or request body, so that it is GET & POST compatible —
  * and complain if any required params are missing
@@ -167,8 +176,7 @@ const processArguments = (req: Request): Parameters => {
     // geocodedFieldName: "Geocoding Cache",
     viewName: "Grid view",
   }
-  const hasBody = Object.entries(req.body).length > 0
-  const params: Parameters = hasBody ? req.body : req.query
+  const params = queryOrBody(req)
 
   if (!params.tableName) throw new Error("Please supply tableName")
   if (!params.idFieldName) throw new Error("Please supply idFieldName")
@@ -197,9 +205,9 @@ const cluster = (
     // add a hex color, from a diy divergent color scheme
     // @ts-ignore
     const { cluster } = feature.properties
-    const hue = cluster * 360/numberOfClusters
+    const hue = (cluster * 360) / numberOfClusters
     const hex = hsl(hue, 50, 50)
-    feature.properties!['marker-color'] = hex
+    feature.properties!["marker-color"] = hex
   })
 }
 
@@ -209,15 +217,19 @@ const cluster = (
 export const airtableToGeoJSON = async (req: Request, res: Response) => {
   try {
     const params = processArguments(req)
-    let featureCollection = await fetchAndTransform(params)
+    const featureCollection = await fetchAndTransform(params)
 
     if (params.clusterCount) {
       cluster(featureCollection, params.clusterCount)
     }
 
-    res.set('Access-Control-Allow-Origin', '*');
+    console.log(JSON.stringify({ [new Date().toISOString()]: params }))
+    res.set("Access-Control-Allow-Origin", "*")
     res.status(200).json(featureCollection)
   } catch (e) {
+    console.error(e)
+    console.error(queryOrBody(req))
+    console.trace()
     res.status(400).json({ error: e.message })
   }
 }
