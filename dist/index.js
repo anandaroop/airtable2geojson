@@ -107,7 +107,7 @@ function fetchGeocodedRecords(params) {
 var decodeAirtableGeodata = function (value) {
     var geocode = value.substring(3); // lop off leading status indicator emoji
     var buffer = Buffer.from(geocode, "base64");
-    var text = buffer.toString("ascii");
+    var text = buffer.toString("ascii").replace(/\\"/g, "");
     return JSON.parse(text);
 };
 /**
@@ -167,6 +167,14 @@ var fetchAndTransform = function (params) { return __awaiter(void 0, void 0, voi
     });
 }); };
 /**
+ * Pull out the either the request query or body, whichever is populated
+ */
+var queryOrBody = function (req) {
+    var hasBody = Object.entries(req.body).length > 0;
+    var params = hasBody ? req.body : req.query;
+    return params;
+};
+/**
  * Pull out the parameters from the http request — from either
  * querystring or request body, so that it is GET & POST compatible —
  * and complain if any required params are missing
@@ -178,8 +186,7 @@ var processArguments = function (req) {
         // geocodedFieldName: "Geocoding Cache",
         viewName: "Grid view",
     };
-    var hasBody = Object.entries(req.body).length > 0;
-    var params = hasBody ? req.body : req.query;
+    var params = queryOrBody(req);
     if (!params.tableName)
         throw new Error("Please supply tableName");
     if (!params.idFieldName)
@@ -203,35 +210,53 @@ var cluster = function (featureCollection, numberOfClusters) {
         // add a hex color, from a diy divergent color scheme
         // @ts-ignore
         var cluster = feature.properties.cluster;
-        var hue = cluster * 360 / numberOfClusters;
+        var hue = (cluster * 360) / numberOfClusters;
         var hex = hsl_to_hex_1.default(hue, 50, 50);
-        feature.properties['marker-color'] = hex;
+        feature.properties["marker-color"] = hex;
     });
+};
+var corsPreflightResponse = function (res) {
+    // Send response to OPTIONS requests
+    res.set("Access-Control-Allow-Methods", "GET, POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.set("Access-Control-Max-Age", "3600");
+    res.status(204).send("");
 };
 /**
  * HTTP request handler that serves as the cloud function endpoint
  */
 exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var params, featureCollection, e_1;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
+    var _a, _b;
+    return __generator(this, function (_c) {
+        switch (_c.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
-                params = processArguments(req);
-                return [4 /*yield*/, fetchAndTransform(params)];
+                _c.trys.push([0, 4, , 5]);
+                res.set("Access-Control-Allow-Origin", "*");
+                if (!(req.method === "OPTIONS")) return [3 /*break*/, 1];
+                console.log(JSON.stringify((_a = {}, _a[new Date().toISOString()] = "cors preflight", _a)));
+                corsPreflightResponse(res);
+                return [3 /*break*/, 3];
             case 1:
-                featureCollection = _a.sent();
+                params = processArguments(req);
+                console.log(JSON.stringify((_b = {}, _b[new Date().toISOString()] = params, _b)));
+                return [4 /*yield*/, fetchAndTransform(params)];
+            case 2:
+                featureCollection = _c.sent();
                 if (params.clusterCount) {
                     cluster(featureCollection, params.clusterCount);
                 }
-                res.set('Access-Control-Allow-Origin', '*');
                 res.status(200).json(featureCollection);
-                return [3 /*break*/, 3];
-            case 2:
-                e_1 = _a.sent();
+                _c.label = 3;
+            case 3: return [3 /*break*/, 5];
+            case 4:
+                e_1 = _c.sent();
+                console.error(e_1);
+                console.error(queryOrBody(req));
+                console.trace();
                 res.status(400).json({ error: e_1.message });
-                return [3 /*break*/, 3];
-            case 3: return [2 /*return*/];
+                return [3 /*break*/, 5];
+            case 5: return [2 /*return*/];
         }
     });
 }); };
