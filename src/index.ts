@@ -211,21 +211,35 @@ const cluster = (
   })
 }
 
+const corsPreflightResponse = (res: Response) => {
+  // Send response to OPTIONS requests
+  res.set("Access-Control-Allow-Methods", "GET, POST")
+  res.set("Access-Control-Allow-Headers", "Content-Type")
+  res.set("Access-Control-Max-Age", "3600")
+  res.status(204).send("")
+}
+
 /**
  * HTTP request handler that serves as the cloud function endpoint
  */
 export const airtableToGeoJSON = async (req: Request, res: Response) => {
   try {
-    const params = processArguments(req)
-    const featureCollection = await fetchAndTransform(params)
-
-    if (params.clusterCount) {
-      cluster(featureCollection, params.clusterCount)
-    }
-
-    console.log(JSON.stringify({ [new Date().toISOString()]: params }))
     res.set("Access-Control-Allow-Origin", "*")
-    res.status(200).json(featureCollection)
+
+    if (req.method === "OPTIONS") {
+      console.log(JSON.stringify({ [new Date().toISOString()]: "cors preflight" }))
+      corsPreflightResponse(res)
+    } else {
+      const params = processArguments(req)
+      console.log(JSON.stringify({ [new Date().toISOString()]: params }))
+
+      const featureCollection = await fetchAndTransform(params)
+
+      if (params.clusterCount) {
+        cluster(featureCollection, params.clusterCount)
+      }
+      res.status(200).json(featureCollection)
+    }
   } catch (e) {
     console.error(e)
     console.error(queryOrBody(req))
