@@ -100,24 +100,30 @@ const toGeoJSONFeature = (
     geocodedFieldName,
   }: Pick<Parameters, "idFieldName" | "geocodedFieldName">
 ) => {
-  const id = record.fields[idFieldName]
-  const cachedGeocoderResult = record.fields[geocodedFieldName]
+  try {
+    const id = record.fields[idFieldName]
+    const cachedGeocoderResult = record.fields[geocodedFieldName]
 
-  const geodata = decodeAirtableGeodata(cachedGeocoderResult)
-  const {
-    o: { lat, lng },
-  } = geodata
+    const geodata = decodeAirtableGeodata(cachedGeocoderResult)
+    const {
+      o: { lat, lng },
+    } = geodata
 
-  const feature: Feature<Point> = {
-    type: "Feature",
-    properties: { id },
-    geometry: {
-      type: "Point",
-      coordinates: [lng, lat],
-    },
+    const feature: Feature<Point> = {
+      type: "Feature",
+      properties: { id },
+      geometry: {
+        type: "Point",
+        coordinates: [lng, lat],
+      },
+    }
+
+    return feature
+  } catch (e) {
+    console.error("Unable to convert to GeoJSON Feature:", record.fields)
+    // swallow this error for now, to have less disruptive server responses
+    // throw e
   }
-
-  return feature
 }
 
 /**
@@ -131,9 +137,12 @@ const toGeoJSONFeatureCollection = (
     geocodedFieldName,
   }: Pick<Parameters, "idFieldName" | "geocodedFieldName">
 ) => {
-  const features = records.map((record) =>
-    toGeoJSONFeature(record, { idFieldName, geocodedFieldName })
-  )
+  const features = records
+    .map((record) =>
+      toGeoJSONFeature(record, { idFieldName, geocodedFieldName })
+    )
+    .filter((x) => x) as Feature<Point>[]
+
   const featureCollection: FeatureCollection<Point> = {
     type: "FeatureCollection",
     features: features,
@@ -227,7 +236,6 @@ export const airtableToGeoJSON = async (req: Request, res: Response) => {
     res.set("Access-Control-Allow-Origin", "*")
 
     if (req.method === "OPTIONS") {
-      console.log(JSON.stringify({ [new Date().toISOString()]: "cors preflight" }))
       corsPreflightResponse(res)
     } else {
       const params = processArguments(req)

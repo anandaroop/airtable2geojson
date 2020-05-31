@@ -117,19 +117,26 @@ var decodeAirtableGeodata = function (value) {
  */
 var toGeoJSONFeature = function (record, _a) {
     var idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
-    var id = record.fields[idFieldName];
-    var cachedGeocoderResult = record.fields[geocodedFieldName];
-    var geodata = decodeAirtableGeodata(cachedGeocoderResult);
-    var _b = geodata.o, lat = _b.lat, lng = _b.lng;
-    var feature = {
-        type: "Feature",
-        properties: { id: id },
-        geometry: {
-            type: "Point",
-            coordinates: [lng, lat],
-        },
-    };
-    return feature;
+    try {
+        var id = record.fields[idFieldName];
+        var cachedGeocoderResult = record.fields[geocodedFieldName];
+        var geodata = decodeAirtableGeodata(cachedGeocoderResult);
+        var _b = geodata.o, lat = _b.lat, lng = _b.lng;
+        var feature = {
+            type: "Feature",
+            properties: { id: id },
+            geometry: {
+                type: "Point",
+                coordinates: [lng, lat],
+            },
+        };
+        return feature;
+    }
+    catch (e) {
+        console.error("Unable to convert to GeoJSON Feature:", record.fields);
+        // swallow this error for now, to have less disruptive server responses
+        // throw e
+    }
 };
 /**
  * Take a set of Airtable records and transform it into a
@@ -137,9 +144,11 @@ var toGeoJSONFeature = function (record, _a) {
  */
 var toGeoJSONFeatureCollection = function (records, _a) {
     var idFieldName = _a.idFieldName, geocodedFieldName = _a.geocodedFieldName;
-    var features = records.map(function (record) {
+    var features = records
+        .map(function (record) {
         return toGeoJSONFeature(record, { idFieldName: idFieldName, geocodedFieldName: geocodedFieldName });
-    });
+    })
+        .filter(function (x) { return x; });
     var featureCollection = {
         type: "FeatureCollection",
         features: features,
@@ -227,30 +236,29 @@ var corsPreflightResponse = function (res) {
  */
 exports.airtableToGeoJSON = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var params, featureCollection, e_1;
-    var _a, _b;
-    return __generator(this, function (_c) {
-        switch (_c.label) {
+    var _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
             case 0:
-                _c.trys.push([0, 4, , 5]);
+                _b.trys.push([0, 4, , 5]);
                 res.set("Access-Control-Allow-Origin", "*");
                 if (!(req.method === "OPTIONS")) return [3 /*break*/, 1];
-                console.log(JSON.stringify((_a = {}, _a[new Date().toISOString()] = "cors preflight", _a)));
                 corsPreflightResponse(res);
                 return [3 /*break*/, 3];
             case 1:
                 params = processArguments(req);
-                console.log(JSON.stringify((_b = {}, _b[new Date().toISOString()] = params, _b)));
+                console.log(JSON.stringify((_a = {}, _a[new Date().toISOString()] = params, _a)));
                 return [4 /*yield*/, fetchAndTransform(params)];
             case 2:
-                featureCollection = _c.sent();
+                featureCollection = _b.sent();
                 if (params.clusterCount) {
                     cluster(featureCollection, params.clusterCount);
                 }
                 res.status(200).json(featureCollection);
-                _c.label = 3;
+                _b.label = 3;
             case 3: return [3 /*break*/, 5];
             case 4:
-                e_1 = _c.sent();
+                e_1 = _b.sent();
                 console.error(e_1);
                 console.error(queryOrBody(req));
                 console.trace();
